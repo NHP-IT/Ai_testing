@@ -18,9 +18,12 @@ describe("testing connection inventory", () => {
     );
   });
 
-  it("keeps final web-app-only values unconfigured instead of inventing placeholders", () => {
+  it("has the real SQL analytics endpoint configured", () => {
+    expect(testingConnections.sqlEndpoint?.server).toContain("datawarehouse.fabric.microsoft.com");
+  });
+
+  it("keeps notebook item IDs unconfigured until provided by the user", () => {
     expect(hasFabricServicePrincipal()).toBe(false);
-    expect(testingConnections.sqlEndpoint).toBeUndefined();
     expect(testingConnections.fabric.notebooks.responseCapture).toBeUndefined();
     expect(testingConnections.fabric.notebooks.scoreMerge).toBeUndefined();
   });
