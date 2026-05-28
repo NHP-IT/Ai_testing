@@ -146,6 +146,11 @@ export const testingConnections: TestingConnections = {
         "https://605e3ed6b18fece1ad544f71a003a6.cb.environment.api.powerplatform.com/copilotstudio/dataverse-backed/authenticated/bots/cr578_Productsagent/conversations?api-version=2022-03-01-preview"
     }
   },
+  sqlEndpoint: {
+    server:
+      "hq2w4iq265vexjvpfezhkgb2ma-aqj6lwmkfnre5nujsixht7lwwq.datawarehouse.fabric.microsoft.com",
+    database: "jacks_Lakehouse"
+  },
   judge: {
     provider: "ollama_openai_compatible",
     localBaseUrl: "http://127.0.0.1:11434/v1",

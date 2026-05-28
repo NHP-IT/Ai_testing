@@ -2,9 +2,17 @@
 
 ## Summary
 
-Build a standalone Next.js/React web app for end-to-end testing of Copilot Studio agents. The app runs outside Fabric. Fabric Lakehouse/OneLake is used for configuration storage, run artifacts, response captures, judge score files, and the final Delta result table.
+Build a standalone Next.js/React web app for end-to-end testing of Copilot Studio agents. The app runs outside Fabric. Fabric Lakehouse/OneLake is used for configuration storage, run artifacts, response captures, judge score files, and the final Delta result tables.
 
-The app evaluates uploaded CSV questions against Copilot Studio agent answers. The CSV does not need expected answers. The app retrieves source-of-truth context, asks a configurable judge LLM to create a reference answer and scores, then writes the final result into a single wide Delta table.
+The system runs two parallel, independent evaluation tracks for every run:
+
+**Track A — Custom BM25 + LLM Judge**
+The app evaluates uploaded CSV questions against Copilot Studio agent answers. The CSV does not need expected answers. The app retrieves source-of-truth context via BM25 keyword search, asks a configurable judge LLM to create a reference answer and scores, then writes the final result into a single wide Delta table (`agent_eval_results`).
+
+**Track B — Microsoft Native Evaluation (Power Platform API)**
+The app triggers Microsoft's built-in Copilot Studio evaluation engine against test sets configured natively inside Copilot Studio. Microsoft runs its own quality metrics (General quality, pass/fail per test case) and returns structured scores, which are written into separate Delta tables (`agent_eval_microsoft_test_sets`, `agent_eval_microsoft_eval_scores`).
+
+Both tracks run in parallel. Neither blocks the other. The run detail page surfaces results from both tracks side by side. Track B is per-agent opt-in; agents without Copilot Studio test sets simply skip it.
 
 For the testing phase, connection values are allowed to be hardcoded into a committed documentation file and mirrored in a server-only config module. This must be treated as temporary; secrets should be rotated before production.
 
@@ -13,31 +21,38 @@ For the testing phase, connection values are allowed to be hardcoded into a comm
 ```mermaid
 flowchart LR
   UI["Next.js UI"] --> API["Next.js API routes"]
-  API --> DOC["docs/testing-connections.md"]
   API --> REG["OneLake config/agents.json"]
   API --> CFG["OneLake config/judge_profiles.json"]
   API --> RUN["OneLake runs/{run_id}/manifest.json + cases.json"]
-  API --> FAB1["Fabric response-capture notebook"]
 
-  FAB1 --> DL["Copilot Studio Direct Line"]
-  DL --> FAB1
-  FAB1 --> RAW["OneLake runs/{run_id}/raw_responses.json"]
-  FAB1 --> DELTA["Delta: agent_eval_results"]
+  subgraph TrackA["Track A — Custom BM25 + LLM Judge"]
+    API --> FAB1["Fabric: response-capture notebook"]
+    FAB1 --> DL["Copilot Studio Direct Line"]
+    DL --> FAB1
+    FAB1 --> RAW["OneLake runs/{run_id}/raw_responses.json"]
+    RAW --> RAG["Next.js RAG + scoring service"]
+    RAG --> CHUNKS["OneLake corpus/{agent_id}/chunks.jsonl"]
+    RAG --> JUDGE["Ollama / OpenAI-compatible judge"]
+    RAG --> SCORES["OneLake runs/{run_id}/judge_scores.json"]
+    SCORES --> FAB2["Fabric: score-merge notebook"]
+    FAB2 --> DELTA_A["Delta: agent_eval_results"]
+  end
 
-  API --> RAW
-  API --> RAG["Next.js RAG + scoring service"]
-  RAG --> CHUNKS["OneLake corpus/{agent_id}/chunks.jsonl"]
-  RAG --> JUDGE["Ollama/OpenAI-compatible judge"]
-  RAG --> SCORES["OneLake runs/{run_id}/judge_scores.json"]
-
-  SCORES --> FAB2["Lightweight Delta merge notebook"]
-  FAB2 --> DELTA
+  subgraph TrackB["Track B — Microsoft Native Evaluation"]
+    API --> FAB3["Fabric: ms-eval notebook"]
+    FAB3 --> PP["Power Platform API\n/copilotstudio/.../makerevaluation"]
+    PP --> FAB3
+    FAB3 --> DELTA_B1["Delta: agent_eval_microsoft_test_sets"]
+    FAB3 --> DELTA_B2["Delta: agent_eval_microsoft_eval_scores"]
+  end
 
   UI --> STATUS["GET /api/runs/{run_id}/status"]
   STATUS --> RUN
   STATUS --> RAW
   STATUS --> SCORES
-  STATUS --> DELTA
+  STATUS --> DELTA_A
+  STATUS --> DELTA_B1
+  STATUS --> DELTA_B2
 ```
 
 ## Stage 0 - Repository And Testing Connection Baseline
@@ -51,8 +66,11 @@ Deliverables:
   - Lakehouse ID/name.
   - OneLake roots for `Files/agent_eval`, config, runs, and corpus.
   - SQL analytics endpoint connection string for read-only result queries.
+  - Fabric service-principal tenant ID, client ID, and client secret.
   - Fabric response-capture notebook ID/name.
-  - Fabric merge notebook ID/name.
+  - Fabric score-merge notebook ID/name.
+  - Fabric ms-eval notebook ID/name.
+  - Power Platform API root and default API version.
   - Copilot agent ID/display name/schema/environment/bot IDs.
   - Direct Line secret for testing.
   - Ollama/OpenAI-compatible judge base URL, model, timeout, temperature.
@@ -81,7 +99,7 @@ Deliverables:
   - `/corpus` source-of-truth corpus management.
   - `/runs/new` CSV upload and run creation.
   - `/runs/[run_id]` URL-addressable run status and results.
-- Add app-wide layout/navigation optimized for operational use rather than a marketing page.
+- Add app-wide layout/navigation optimised for operational use rather than a marketing page.
 
 Acceptance criteria:
 
@@ -127,7 +145,7 @@ Acceptance criteria:
 
 ## Stage 3 - Fabric And OneLake Infrastructure Layer
 
-Goal: centralize all Fabric and OneLake access behind server-side helpers.
+Goal: centralise all Fabric and OneLake access behind server-side helpers.
 
 Deliverables:
 
@@ -135,6 +153,7 @@ Deliverables:
   - Service-principal token helper.
   - Fabric REST token helper.
   - OneLake/ADLS token helper.
+  - Power Platform token helper (scope `https://api.powerplatform.com/.default`).
 - `src/lib/fabric/onelake.ts`
   - Read/write JSON.
   - Read/write JSONL.
@@ -147,11 +166,12 @@ Deliverables:
   - Store returned job IDs in run manifests/results.
 - `src/lib/fabric/results.ts`
   - Read `agent_eval_results` from the Lakehouse SQL analytics endpoint.
+  - Read `agent_eval_microsoft_eval_scores` from the SQL analytics endpoint.
   - Treat SQL endpoint as read-only.
 
 Acceptance criteria:
 
-- Connectivity endpoint can check Fabric API, OneLake read/write, SQL read, Direct Line, and judge server independently.
+- Connectivity endpoint can check Fabric API, OneLake read/write, SQL read, Direct Line, Power Platform API, and judge server independently.
 - Failed connectivity checks return actionable error messages.
 
 ## Stage 4 - Agent Registry And Judge Configuration
@@ -174,6 +194,10 @@ Deliverables:
   - `environment_id`
   - `bot_id`
   - Direct Line secret reference or testing secret value source.
+  - `ms_eval_enabled` — whether to trigger Track B for this agent. Default `false`.
+  - `ms_eval_test_set_ids` — list of Copilot Studio test set IDs to run. Empty list runs all active sets.
+  - `ms_eval_api_version` — Power Platform API version. Default `2024-10-01`.
+  - `ms_eval_mcs_connection_id` — optional Direct Line channel override for MS eval.
 - Judge settings backed by `Files/agent_eval/config/judge_profiles.json`.
 - Judge fields:
   - Provider: `ollama_openai_compatible`, `custom_openai_compatible`, future `azure_openai`.
@@ -195,6 +219,7 @@ Deliverables:
 Acceptance criteria:
 
 - Agent add/edit/enable/disable works.
+- MS eval fields are editable per agent.
 - Judge connection test works without creating a run.
 - Config saves reject stale versions instead of overwriting.
 
@@ -234,7 +259,7 @@ Acceptance criteria:
 
 ## Stage 6 - CSV Upload And Run Creation
 
-Goal: create URL-addressable runs from validated CSVs.
+Goal: create URL-addressable runs from validated CSVs and kick off both evaluation tracks.
 
 Deliverables:
 
@@ -242,25 +267,28 @@ Deliverables:
 - Validation preview with row-level errors.
 - `POST /api/runs`:
   - Creates a `run_id`.
-  - Normalizes cases.
-  - Writes `runs/{run_id}/manifest.json`.
+  - Normalises cases.
+  - Writes `runs/{run_id}/manifest.json` — includes a `tracks` field listing which tracks are active for each agent.
   - Writes `runs/{run_id}/cases.json`.
   - Writes agent snapshot.
   - Writes judge/scoring snapshot.
-  - Triggers the Fabric response-capture notebook.
+  - Triggers the Fabric response-capture notebook (Track A).
+  - If any agent in the run has `ms_eval_enabled: true`, also triggers the Fabric ms-eval notebook (Track B) in parallel.
 - `/runs/[run_id]` reconstructs state from OneLake and Delta after refresh or tab close.
 - Client polls `GET /api/runs/{run_id}/status` every 5 seconds.
+- Status response includes both Track A and Track B job states.
 - UI sets expectations that Fabric cold starts can make runs take 5-10 minutes.
 
 Acceptance criteria:
 
 - User can start a run from a question-only CSV.
-- Closing and reopening `/runs/[run_id]` recovers state.
+- Track B notebook is triggered only for agents with `ms_eval_enabled: true`.
+- Closing and reopening `/runs/[run_id]` recovers state for both tracks.
 - No route handler holds a 30-minute polling loop.
 
-## Stage 7 - Fabric Response Capture Notebook Contract
+## Stage 7 - Fabric Response Capture Notebook Contract (Track A)
 
-Goal: capture Copilot Studio responses and insert initial Delta rows.
+Goal: capture Copilot Studio responses via Direct Line and insert initial Delta rows.
 
 Notebook responsibilities:
 
@@ -291,7 +319,52 @@ Acceptance criteria:
 - Response capture can be rerun from the same manifest.
 - Agent call failures are captured per test case rather than failing the entire run when possible.
 
-## Stage 8 - Next.js RAG And Judge Scoring Service
+## Stage 7b - Fabric MS Eval Notebook Contract (Track B)
+
+Goal: trigger Microsoft's native Copilot Studio evaluation against configured test sets and write results to Delta.
+
+Notebook responsibilities:
+
+- Read `manifest.json` to identify which agents have `ms_eval_enabled: true`.
+- For each eligible agent:
+  - Acquire a Power Platform token (scope `https://api.powerplatform.com/.default`) using the service principal.
+  - Call `GET /environments/{env_id}/bots/{bot_id}/api/makerevaluation/testsets` to discover available test sets.
+  - Filter to test sets in `ms_eval_test_set_ids` (or all active sets if the list is empty).
+  - Trigger a run for each selected test set: `GET /environments/{env_id}/bots/{bot_id}/api/makerevaluation/testsets/{id}/run`.
+  - Poll `GET /environments/{env_id}/bots/{bot_id}/api/makerevaluation/testruns/{run_id}` until completed or timed out (30 minutes max).
+  - Flatten per-test-case, per-metric results.
+- Write test set metadata to `agent_eval_microsoft_test_sets` Delta table.
+- Write per-case scores to `agent_eval_microsoft_eval_scores` Delta table.
+- Write `runs/{run_id}/ms_eval_status.json` with job-level state so the Next.js app can surface it.
+- Contain no Direct Line, BM25, or LLM judge logic.
+
+`ms_eval_status.json` shape:
+
+```json
+{
+  "status": "completed",
+  "agents": {
+    "sparky": {
+      "test_sets_discovered": 2,
+      "test_sets_run": 2,
+      "total_cases": 40,
+      "completed_at": "2026-05-28T10:00:00.000Z",
+      "error": null
+    }
+  }
+}
+```
+
+Power Platform API version used: `2024-10-01` (overridable per agent via `ms_eval_api_version`).
+
+Acceptance criteria:
+
+- MS eval notebook runs independently of Track A with no shared state.
+- Timeout per agent is enforced; a timed-out agent does not block others.
+- If no test sets are configured in Copilot Studio for an agent, the notebook records `test_sets_discovered: 0` and exits cleanly.
+- The notebook is idempotent: rerunning appends a new set of rows keyed by `run_id`.
+
+## Stage 8 - Next.js RAG And Judge Scoring Service (Track A)
 
 Goal: score captured responses with recoverable per-test-case processing.
 
@@ -332,9 +405,9 @@ Acceptance criteria:
 - Crashing after partial scoring resumes only missing cases.
 - Invalid judge JSON creates a recoverable per-case error.
 
-## Stage 9 - Lightweight Delta Merge Notebook Contract
+## Stage 9 - Lightweight Delta Merge Notebook Contract (Track A)
 
-Goal: merge score files into the single wide Delta table.
+Goal: merge Track A score files into the single wide custom Delta table.
 
 Notebook responsibilities:
 
@@ -348,9 +421,9 @@ Acceptance criteria:
 - If scores exist but Delta rows are missing or stale, rerunning the merge notebook repairs the table.
 - Merge is idempotent for the same score file.
 
-## Stage 10 - Final Delta Table Contract
+## Stage 10 - Final Delta Table Contracts
 
-Table name: `agent_eval_results`.
+### Track A — `agent_eval_results`
 
 Merge key: `run_id + agent_id + test_id`.
 
@@ -374,9 +447,49 @@ Default verdict logic:
 - `WARN`: retrieval is weak/missing or judge output is invalid but the agent responded.
 - `NEEDS_REVIEW`: scoring cannot complete after retry.
 
+### Track B — `agent_eval_microsoft_test_sets`
+
+Append-only. Keyed by `run_id + agent_id + ms_test_set_id`.
+
+| Column | Type | Notes |
+|---|---|---|
+| `run_id` | string | |
+| `agent_id` | string | |
+| `environment_id` | string | |
+| `bot_id` | string | |
+| `ms_test_set_id` | string | Copilot Studio test set GUID |
+| `display_name` | string | |
+| `state` | string | e.g. Active |
+| `total_test_cases` | int | |
+| `selected_for_run` | bool | Whether this set was actually triggered |
+| `discovered_at` | timestamp | |
+
+### Track B — `agent_eval_microsoft_eval_scores`
+
+Append-only. Keyed by `run_id + agent_id + ms_eval_run_id + ms_test_case_id + metric_type`.
+
+| Column | Type | Notes |
+|---|---|---|
+| `run_id` | string | |
+| `agent_id` | string | |
+| `environment_id` | string | |
+| `bot_id` | string | |
+| `ms_eval_run_id` | string | Microsoft's run GUID |
+| `ms_test_set_id` | string | |
+| `ms_test_case_id` | string | |
+| `metric_type` | string | e.g. "General quality" |
+| `metric_label` | string | e.g. "Pass", "Fail" |
+| `metric_score` | double | 0.0–1.0 or null |
+| `metric_passed` | bool | |
+| `status` | string | |
+| `reason` | string | Microsoft's AI explanation |
+| `scored_at` | timestamp | |
+
 ## Stage 11 - Recovery Rules
 
-Recovery is per test case.
+Recovery is per test case for Track A, and per agent for Track B.
+
+### Track A recovery
 
 `judge_scores.json` format:
 
@@ -409,44 +522,127 @@ Rules:
 - Partial `judge_scores.json` exists: continue from unscored cases.
 - Capture notebook failed: show the error and allow rerun from the same manifest.
 
-## Stage 12 - Testing And Manual Acceptance
+### Track B recovery
+
+Rules:
+
+- MS eval notebook failed mid-run: rerunning the notebook appends a fresh set of rows — Delta tables are append-only so no data is overwritten.
+- MS eval timed out for one agent: that agent's status in `ms_eval_status.json` records `error`; other agents are unaffected.
+- `ms_eval_status.json` missing: assume Track B is not yet complete; show "pending" in the UI.
+- Track A completion does not depend on Track B and vice versa.
+
+## Stage 12 - Run Detail UI
+
+Goal: surface both evaluation tracks on the run detail page.
+
+Deliverables:
+
+- `/runs/[run_id]` page shows:
+  - Run metadata (status, created at, agent list).
+  - Track A panel: response capture job status, per-case scoring progress, verdict summary table.
+  - Track B panel: MS eval job status, test sets discovered, per-agent pass/fail breakdown from Microsoft's metrics. Hidden if no agent in the run has `ms_eval_enabled: true`.
+  - A combined summary across both tracks (total cases, pass rate).
+- Client polls `GET /api/runs/{run_id}/status` every 5 seconds while either track is still running.
+- Status response includes Track A job IDs + Track B job ID + `ms_eval_status.json` content.
+
+Acceptance criteria:
+
+- Track B panel is hidden when no MS-eval-enabled agents are in the run.
+- Refreshing the page recovers both Track A and Track B states from OneLake and Delta.
+- A run where Track B timed out still shows Track A results correctly.
+
+## Stage 13 - Testing And Manual Acceptance
 
 Unit tests:
 
 - CSV validation.
-- Agent registry validation.
+- Agent registry validation (including MS eval fields).
 - ETag conflict handling.
 - Corpus chunking and `source_filter`.
 - BM25/keyword retrieval.
 - Deterministic checks.
 - Judge JSON parsing.
 - Verdict calculation.
-- Per-test-case recovery.
+- Per-test-case recovery (Track A).
+- Track B status parsing from `ms_eval_status.json`.
 
 Integration tests with mocks:
 
 - OneLake read/write.
-- Fabric notebook trigger/status.
+- Fabric notebook trigger/status (all three notebooks).
 - Direct Line response capture.
 - Ollama judge scoring.
 - Delta merge payload.
+- Power Platform API test set list + run + poll cycle (mocked responses).
 
 Manual acceptance:
 
-- Add an agent.
+- Add an agent with MS eval enabled and test set IDs configured.
 - Configure judge server in UI.
 - Upload corpus.
 - Upload question-only CSV.
 - Start a run.
-- Refresh `/runs/[run_id]` mid-run.
-- Confirm final Delta table has agent snapshot, deterministic checks, RAG reference, judge scores, and verdict.
-- Simulate partial scoring failure and confirm only missing cases resume.
+- Confirm Track A runs (Direct Line capture → scoring → merge).
+- Confirm Track B runs (MS eval notebook triggers → polls → writes to Delta).
+- Refresh `/runs/[run_id]` mid-run — state recovers for both tracks.
+- Confirm final `agent_eval_results` has agent snapshot, deterministic checks, RAG reference, judge scores, and verdict.
+- Confirm `agent_eval_microsoft_eval_scores` has per-metric rows from Microsoft.
+- Simulate partial Track A scoring failure and confirm only missing cases resume.
+- Simulate Track B timeout and confirm Track A is unaffected.
+
+## Authentication Approach — Microsoft Entra ID (Company Logins)
+
+The app uses **Microsoft Entra ID user authentication** rather than a service principal. Users sign in with their company Microsoft accounts. All Fabric, OneLake, and Power Platform API calls are made using the signed-in user's own delegated access token. This means:
+
+- No shared service-account credentials to manage or rotate.
+- Access is automatically scoped to what each user can already do in the Fabric workspace.
+- Users who leave the company lose access automatically.
+- Fabric notebooks use `mssparkutils.credentials` internally and are unaffected by app-level auth.
+
+**Implementation:** NextAuth.js with the Microsoft Entra ID provider. The sign-in flow redirects to Microsoft, returns an access token, and stores it in a secure server-side session. All route handlers read the session token and use it for upstream calls. The auth layer in `src/lib/fabric/auth.ts` is updated to read from the NextAuth session instead of doing client-credentials flow.
+
+**Token scopes requested at login:**
+
+| Resource | Scope |
+|---|---|
+| OneLake / ADLS Gen2 | `https://storage.azure.com/user_impersonation` |
+| Fabric REST API | `https://api.fabric.microsoft.com/Item.ReadWrite.All` |
+| Power Platform (Track B) | `https://api.powerplatform.com/user_impersonation` |
+
+**IT prerequisites (app registration):** An Azure AD App Registration is required. This is an IT task and can be completed after the app code is built. The app runs in "auth not configured" mode until the registration is in place — all UI routes load and the connectivity checker shows which checks are blocked.
+
+What IT needs to do:
+1. Register a new app in Azure Portal → Entra ID → App Registrations.
+2. Add redirect URIs: `http://localhost:3000/api/auth/callback/microsoft-entra-id` (dev) + the production URL.
+3. Under API permissions, add the three delegated scopes above and grant admin consent.
+4. Create a client secret (used only for the auth code exchange, not for data access).
+5. Share the **client ID**, **client secret**, and confirm the **tenant ID** (`226e353c-f71a-4b6a-a6af-293275183a60`).
 
 ## Assumptions
 
-- Ollama is only the proof-of-concept judge backend.
+- Ollama is only the proof-of-concept judge backend for Track A.
 - The app runtime is Next.js, not Fabric.
 - Fabric Lakehouse/OneLake is the storage layer.
 - V1 retrieval is BM25/keyword over OneLake chunk files.
 - `similarity_score` is null until embeddings are configured.
 - Real secrets may be committed for testing only and must be rotated before production.
+- Track B requires test sets to already exist in Copilot Studio. The app does not create or manage Copilot Studio test sets.
+- All three resource token scopes are acquired via the same Microsoft Entra ID login session.
+- The app gracefully degrades when the app registration is not yet configured — UI loads, connectivity checks report `not_configured`.
+
+## Credentials And Prerequisites Tracker
+
+| Item | Stage needed | Status | Notes |
+|---|---|---|---|
+| Entra ID app registration client ID | Stage 3+ auth | Pending IT | Azure Portal → App Registrations |
+| Entra ID app registration client secret | Stage 3+ auth | Pending IT | Certificates & secrets tab |
+| Tenant ID | Stage 3+ auth | Known | `226e353c-f71a-4b6a-a6af-293275183a60` |
+| Admin consent granted for 3 API scopes | Stage 3+ auth | Pending IT | One-click in API permissions tab |
+| Production redirect URI | Pre-deploy | Pending | Add once hosting URL is known |
+| SQL endpoint server | Stage 10 | Known | `hq2w4iq265vexjvpfezhkgb2ma-aqj6lwmkfnre5nujsixht7lwwq.datawarehouse.fabric.microsoft.com` |
+| SQL endpoint database | Stage 10 | Known | `jacks_Lakehouse` |
+| Response-capture notebook item ID | Stage 7 | Pending | Create blank notebook in Fabric workspace, copy item ID |
+| Score-merge notebook item ID | Stage 9 | Pending | Create blank notebook in Fabric workspace, copy item ID |
+| MS eval notebook item ID | Stage 7b | Pending | Create blank notebook in Fabric workspace, copy item ID |
+| Copilot Studio test set IDs for Sparky | Stage 7b | Pending | Copilot Studio → Sparky → Test → Test sets |
+| `ms_eval_mcs_connection_id` | Stage 7b | Optional | Only if routing via a specific Direct Line channel |

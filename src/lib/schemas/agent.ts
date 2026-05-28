@@ -33,7 +33,11 @@ export const agentSchema = z
     ragas_thresholds: ragasThresholdsSchema.default({
       answer_relevancy: 0.7,
       grounding: 0.7
-    })
+    }),
+    ms_eval_enabled: z.boolean().default(false),
+    ms_eval_test_set_ids: z.array(z.string()).default([]),
+    ms_eval_api_version: nonEmptyStringSchema.default("2024-10-01"),
+    ms_eval_mcs_connection_id: nonEmptyStringSchema.optional()
   })
   .superRefine((agent, ctx) => {
     if (!agent.direct_line_secret && !agent.direct_line_secret_key) {
