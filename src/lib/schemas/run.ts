@@ -22,6 +22,11 @@ export const runStatusSchema = z.enum([
   "NEEDS_REVIEW"
 ]);
 
+export const runTrackSchema = z.object({
+  track_a: z.boolean(),
+  track_b: z.boolean()
+});
+
 export const runManifestSchema = z.object({
   run_id: runIdSchema,
   run_status: runStatusSchema,
@@ -32,7 +37,10 @@ export const runManifestSchema = z.object({
   agent_snapshot: z.array(agentSchema),
   judge_snapshot: judgeProfileSchema,
   scoring_snapshot: scoringProfileSchema,
-  cases: z.array(normalizedCaseSchema)
+  cases: z.array(normalizedCaseSchema),
+  tracks: z.record(agentIdSchema, runTrackSchema).default({}),
+  capture_job_location: z.string().optional(),
+  ms_eval_job_location: z.string().optional()
 });
 
 export const rawResponseSchema = z.object({
@@ -71,6 +79,7 @@ export const judgeScoresSchema = z.record(
 );
 
 export type RunStatus = z.infer<typeof runStatusSchema>;
+export type RunTrack = z.infer<typeof runTrackSchema>;
 export type RunManifest = z.infer<typeof runManifestSchema>;
 export type RawResponse = z.infer<typeof rawResponseSchema>;
 export type RawResponses = z.infer<typeof rawResponsesSchema>;
