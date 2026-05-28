@@ -10,9 +10,9 @@ export default function DashboardPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Stage 1"
+        eyebrow="Copilot Studio"
         title="Evaluation workspace"
-        description="The app shell is ready for the Copilot Studio evaluation workflow. Fabric, OneLake, Direct Line, and judge integrations are intentionally gated to later stages."
+        description="Dual-track evaluation: Track A (BM25 + LLM judge) and Track B (Microsoft native Copilot Studio eval). Waiting on IT for app registration and Fabric notebook item IDs."
         actions={
           <Link
             href="/runs/new"
@@ -90,8 +90,8 @@ export default function DashboardPage() {
 
       <div className="mt-4">
         <EmptyPanel
-          title="Current data state"
-          body="No Fabric data is loaded in Stage 1. The app renders independently so later stages can add server-side integrations without changing the route structure."
+          title="Pending: IT app registration + notebook item IDs"
+          body="Two things remain before live OneLake reads and Fabric notebook triggers work: (1) Azure AD app registration with delegated permissions for OneLake, Fabric, and Power Platform; (2) three Fabric notebook item IDs (response capture, score merge, MS eval). All Next.js code is built and ready — add the IDs to testingConnections.ts when available."
         />
       </div>
     </>
