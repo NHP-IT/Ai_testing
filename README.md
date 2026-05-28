@@ -4,3 +4,4 @@ The repo is to hold the web app that allows for end to end testing for AI agents
 ## Planning
 
 - [Staged implementation plan](docs/implementation-plan.md)
+- [Previous Python/Fabric notebook architecture](previous-architecture/README.md)
