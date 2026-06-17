@@ -73,12 +73,13 @@
             "type":  "OpenApiConnection",
             "inputs":  {
                 "parameters":  {
-                    "id":  "/TestQuestions.csv"
+                    "dataset":  "https://nhp365.sharepoint.com/sites/BusinessIntelligence",
+                    "path":  "/Shared Documents/Automation_Newman/Ai Testing/TestQuestions.csv"
                 },
                 "host":  {
-                    "apiId":  "/providers/Microsoft.PowerApps/apis/shared_onedriveforbusiness",
+                    "apiId":  "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
                     "operationId":  "GetFileContentByPath",
-                    "connectionName":  "shared_onedriveforbusiness"
+                    "connectionName":  "shared_sharepointonline"
                 }
             }
         },
