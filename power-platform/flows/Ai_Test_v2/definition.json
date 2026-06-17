@@ -66,28 +66,33 @@
             }
         },
 
-        "List_rows_present_in_a_table":  {
+        "Get_CSV_file":  {
             "runAfter":  {
                 "Initialize_RegressionResults":  ["Succeeded"]
             },
             "type":  "OpenApiConnection",
             "inputs":  {
                 "parameters":  {
-                    "source":  "me",
-                    "drive":  "b!BMPfgZmKkEiTEb5jLTU1HQmQvi8JPItBnx4WZ-rOtlvVsStc6FwsSoePnePs8rN-",
-                    "file":  "/TestQuestions.xlsx",
-                    "table":  "TestQuestionsTable"
+                    "id":  "/TestQuestions.csv"
                 },
                 "host":  {
-                    "apiId":  "/providers/Microsoft.PowerApps/apis/shared_excelonlinebusiness",
-                    "operationId":  "GetItems",
-                    "connectionName":  "shared_excelonlinebusiness"
+                    "apiId":  "/providers/Microsoft.PowerApps/apis/shared_onedriveforbusiness",
+                    "operationId":  "GetFileContentByPath",
+                    "connectionName":  "shared_onedriveforbusiness"
                 }
             }
         },
 
+        "Parse_CSV_rows":  {
+            "runAfter":  {
+                "Get_CSV_file":  ["Succeeded"]
+            },
+            "type":  "Compose",
+            "inputs":  "@filter(skip(split(replace(string(outputs('Get_CSV_file')?['body']), decodeUriComponent('%0D'), ''), decodeUriComponent('%0A')), 1), not(equals(trim(item()), '')))"
+        },
+
         "Apply_to_each":  {
-            "foreach":  "@outputs('List_rows_present_in_a_table')?['body/value']",
+            "foreach":  "@outputs('Parse_CSV_rows')",
             "operationOptions":  "Sequential",
             "actions":  {
                 "Execute_Agent_and_wait":  {
@@ -95,7 +100,7 @@
                     "inputs":  {
                         "parameters":  {
                             "Copilot":  "copilots_header_07a8e",
-                            "body/message":  "@items('Apply_to_each')?['Question']"
+                            "body/message":  "@trim(split(items('Apply_to_each'), ',')[0])"
                         },
                         "host":  {
                             "apiId":  "/providers/Microsoft.PowerApps/apis/shared_microsoftcopilotstudio",
@@ -111,12 +116,12 @@
                     "type":  "AppendToArrayVariable",
                     "inputs":  {
                         "name":  "RegressionResults",
-                        "value":  "@json(concat('{\"Question\":\"', items('Apply_to_each')?['Question'], '\",\"Expected\":\"', items('Apply_to_each')?['Expected'], '\",\"Response\":\"', outputs('Execute_Agent_and_wait')?['body/outputText'], '\"}'))"
+                        "value":  "@json(concat('{\"Question\":\"', trim(split(items('Apply_to_each'), ',')[0]), '\",\"Expected\":\"', trim(split(items('Apply_to_each'), ',')[1]), '\",\"Response\":\"', outputs('Execute_Agent_and_wait')?['body/outputText'], '\"}'))"
                     }
                 }
             },
             "runAfter":  {
-                "List_rows_present_in_a_table":  ["Succeeded"]
+                "Parse_CSV_rows":  ["Succeeded"]
             },
             "type":  "Foreach"
         },
