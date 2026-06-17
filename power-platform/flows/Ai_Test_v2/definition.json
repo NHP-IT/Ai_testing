@@ -1,0 +1,245 @@
+﻿{
+    "$schema":  "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+    "contentVersion":  "undefined",
+    "parameters":  {
+                       "$authentication":  {
+                                               "defaultValue":  {
+
+                                                                },
+                                               "type":  "SecureObject"
+                                           },
+                       "$connections":  {
+                                            "defaultValue":  {
+
+                                                             },
+                                            "type":  "Object"
+                                        }
+                   },
+    "triggers":  {
+                     "manual":  {
+                                    "type":  "Request",
+                                    "kind":  "Button",
+                                    "inputs":  {
+                                                   "schema":  {
+                                                                  "type":  "object",
+                                                                  "properties":  {
+
+                                                                                 },
+                                                                  "required":  [
+
+                                                                               ]
+                                                              }
+                                               }
+                                }
+                 },
+    "actions":  {
+                    "Initialize_RegressionResults":  {
+                                                         "actions":  {
+                                                                         "Initialize_variable":  {
+                                                                                                     "type":  "InitializeVariable",
+                                                                                                     "inputs":  {
+                                                                                                                    "variables":  [
+                                                                                                                                      {
+                                                                                                                                          "name":  "RegressionResults",
+                                                                                                                                          "type":  "array"
+                                                                                                                                      }
+                                                                                                                                  ]
+                                                                                                                }
+                                                                                                 }
+                                                                     },
+                                                         "runAfter":  {
+
+                                                                      },
+                                                         "type":  "Scope"
+                                                     },
+                    "Initialize_LiveResults":  {
+                                                   "actions":  {
+                                                                   "Initialize_variable_1":  {
+                                                                                                 "type":  "InitializeVariable",
+                                                                                                 "inputs":  {
+                                                                                                                "variables":  [
+                                                                                                                                  {
+                                                                                                                                      "name":  "LiveResults",
+                                                                                                                                      "type":  "array"
+                                                                                                                                  }
+                                                                                                                              ]
+                                                                                                            }
+                                                                                             }
+                                                               },
+                                                   "runAfter":  {
+
+                                                                },
+                                                   "type":  "Scope"
+                                               },
+                    "Initialize_Waiting":  {
+                                               "actions":  {
+
+                                                           },
+                                               "runAfter":  {
+
+                                                            },
+                                               "type":  "Scope"
+                                           },
+                    "List_rows_present_in_a_table":  {
+                                                         "runAfter":  {
+                                                                          "Initialize_RegressionResults":  [
+                                                                                                               "Succeeded"
+                                                                                                           ]
+                                                                      },
+                                                         "type":  "OpenApiConnection",
+                                                         "inputs":  {
+                                                                        "parameters":  {
+                                                                                           "source":  "me",
+                                                                                           "drive":  "b!BMPfgZmKkEiTEb5jLTU1HQmQvi8JPItBnx4WZ-rOtlvVsStc6FwsSoePnePs8rN-",
+                                                                                           "file":  "/TestQuestions.xlsx",
+                                                                                           "table":  "TestQuestionsTable"
+                                                                                       },
+                                                                        "host":  {
+                                                                                     "apiId":  "/providers/Microsoft.PowerApps/apis/shared_excelonlinebusiness",
+                                                                                     "operationId":  "GetItems",
+                                                                                     "connectionName":  "shared_excelonlinebusiness"
+                                                                                 }
+                                                                    }
+                                                     },
+                    "Apply_to_each":  {
+                                          "foreach":  "@outputs(\u0027List_rows_present_in_a_table\u0027)?[\u0027body/value\u0027]",
+                                          "actions":  {
+                                                          "Execute_Agent_and_wait":  {
+                                                                                         "type":  "OpenApiConnectionWebhook",
+                                                                                         "inputs":  {
+                                                                                                        "parameters":  {
+                                                                                                                           "Copilot":  "copilots_header_07a8e",
+                                                                                                                           "body/message":  "@items(\u0027Apply_to_each\u0027)?[\u0027Question\u0027]"
+                                                                                                                       },
+                                                                                                        "host":  {
+                                                                                                                     "apiId":  "/providers/Microsoft.PowerApps/apis/shared_microsoftcopilotstudio",
+                                                                                                                     "operationId":  "ExecuteCopilotAsyncV2",
+                                                                                                                     "connectionName":  "shared_microsoftcopilotstudio"
+                                                                                                                 }
+                                                                                                    }
+                                                                                     },
+                                                          "Append_to_array_variable":  {
+                                                                                           "runAfter":  {
+                                                                                                            "Execute_Agent_and_wait":  [
+                                                                                                                                           "Succeeded"
+                                                                                                                                       ]
+                                                                                                        },
+                                                                                           "type":  "AppendToArrayVariable",
+                                                                                           "inputs":  {
+                                                                                                          "name":  "RegressionResults",
+                                                                                                          "value":  "@json(concat(\u0027{\"Question\":\"\u0027, items(\u0027Apply_to_each\u0027)?[\u0027Question\u0027], \u0027\",\"Expected\":\"\u0027, items(\u0027Apply_to_each\u0027)?[\u0027Expected\u0027], \u0027\",\"Response\":\"\u0027, outputs(\u0027Execute_Agent_and_wait\u0027)?[\u0027body/outputText\u0027], \u0027\"}\u0027))"
+                                                                                                      }
+                                                                                       }
+                                                      },
+                                          "runAfter":  {
+                                                           "List_rows_present_in_a_table":  [
+                                                                                                "Succeeded"
+                                                                                            ]
+                                                       },
+                                          "type":  "Foreach"
+                                      },
+                    "Create_CSV_table":  {
+                                             "runAfter":  {
+                                                              "Apply_to_each":  [
+                                                                                    "Succeeded"
+                                                                                ]
+                                                          },
+                                             "type":  "Table",
+                                             "inputs":  {
+                                                            "from":  "@variables(\u0027RegressionResults\u0027)",
+                                                            "format":  "CSV"
+                                                        }
+                                         },
+                    "Execute_Agent_and_wait_1":  {
+                                                     "runAfter":  {
+                                                                      "Create_CSV_table":  [
+                                                                                               "Succeeded"
+                                                                                           ]
+                                                                  },
+                                                     "type":  "OpenApiConnectionWebhook",
+                                                     "inputs":  {
+                                                                    "parameters":  {
+                                                                                       "Copilot":  "copilots_header_07a8e",
+                                                                                       "body/message":  "@body(\u0027Create_CSV_table\u0027)"
+                                                                                   },
+                                                                    "host":  {
+                                                                                 "apiId":  "/providers/Microsoft.PowerApps/apis/shared_microsoftcopilotstudio",
+                                                                                 "operationId":  "ExecuteCopilotAsyncV2",
+                                                                                 "connectionName":  "shared_microsoftcopilotstudio"
+                                                                             }
+                                                                }
+                                                 },
+                    "Execute_Agent_and_wait_2":  {
+                                                     "runAfter":  {
+                                                                      "Initialize_LiveResults":  [
+                                                                                                     "Succeeded"
+                                                                                                 ]
+                                                                  },
+                                                     "type":  "OpenApiConnectionWebhook",
+                                                     "inputs":  {
+                                                                    "parameters":  {
+                                                                                       "Copilot":  "copilots_header_07a8e"
+                                                                                   },
+                                                                    "host":  {
+                                                                                 "apiId":  "/providers/Microsoft.PowerApps/apis/shared_microsoftcopilotstudio",
+                                                                                 "operationId":  "ExecuteCopilotAsyncV2",
+                                                                                 "connectionName":  "shared_microsoftcopilotstudio"
+                                                                             }
+                                                                }
+                                                 },
+                    "Parse_JSON":  {
+                                       "runAfter":  {
+                                                        "Execute_Agent_and_wait_2":  [
+                                                                                         "Succeeded"
+                                                                                     ]
+                                                    },
+                                       "type":  "ParseJson",
+                                       "inputs":  {
+                                                      "content":  "@outputs(\u0027Execute_Agent_and_wait_2\u0027)?[\u0027body/outputText\u0027]",
+                                                      "schema":  {
+                                                                     "type":  "array",
+                                                                     "items":  {
+                                                                                   "type":  "string"
+                                                                               }
+                                                                 }
+                                                  }
+                                   },
+                    "Apply_to_each_1":  {
+                                            "foreach":  "@body(\u0027Parse_JSON\u0027)",
+                                            "actions":  {
+                                                            "Execute_Agent_and_wait_3":  {
+                                                                                             "type":  "OpenApiConnectionWebhook",
+                                                                                             "inputs":  {
+                                                                                                            "parameters":  {
+                                                                                                                               "Copilot":  "copilots_header_07a8e",
+                                                                                                                               "body/message":  "@items(\u0027Apply_to_each_1\u0027)"
+                                                                                                                           },
+                                                                                                            "host":  {
+                                                                                                                         "apiId":  "/providers/Microsoft.PowerApps/apis/shared_microsoftcopilotstudio",
+                                                                                                                         "operationId":  "ExecuteCopilotAsyncV2",
+                                                                                                                         "connectionName":  "shared_microsoftcopilotstudio"
+                                                                                                                     }
+                                                                                                        }
+                                                                                         },
+                                                            "Append_to_array_variable_1":  {
+                                                                                               "runAfter":  {
+                                                                                                                "Execute_Agent_and_wait_3":  [
+                                                                                                                                                 "Succeeded"
+                                                                                                                                             ]
+                                                                                                            },
+                                                                                               "type":  "AppendToArrayVariable",
+                                                                                               "inputs":  {
+                                                                                                              "name":  "LiveResults",
+                                                                                                              "value":  ""
+                                                                                                          }
+                                                                                           }
+                                                        },
+                                            "runAfter":  {
+                                                             "Parse_JSON":  [
+                                                                                "Succeeded"
+                                                                            ]
+                                                         },
+                                            "type":  "Foreach"
+                                        }
+                }
+}

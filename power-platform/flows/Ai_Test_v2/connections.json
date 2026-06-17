@@ -1,0 +1,24 @@
+﻿{
+    "shared_excelonlinebusiness":  {
+                                       "connectionReferenceLogicalName":  "new_sharedexcelonlinebusiness_a2af1",
+                                       "source":  "Invoker",
+                                       "id":  "/providers/Microsoft.PowerApps/apis/shared_excelonlinebusiness",
+                                       "displayName":  "Excel Online (Business)",
+                                       "iconUri":  "https://static.powerapps.com/resource/ppcr/releases/v1.0.1815/1.0.1815.4762/excelonlinebusiness/icon.png",
+                                       "brandColor":  "#107C41",
+                                       "tier":  "Standard",
+                                       "apiName":  "excelonlinebusiness",
+                                       "isProcessSimpleApiReferenceConversionAlreadyDone":  false
+                                   },
+    "shared_microsoftcopilotstudio":  {
+                                          "connectionReferenceLogicalName":  "new_sharedmicrosoftcopilotstudio_62748",
+                                          "source":  "Invoker",
+                                          "id":  "/providers/Microsoft.PowerApps/apis/shared_microsoftcopilotstudio",
+                                          "displayName":  "Microsoft Copilot Studio",
+                                          "iconUri":  "https://static.powerapps.com/resource/ppcr/releases/v1.0.1813/1.0.1813.4754/microsoftcopilotstudio/icon.png",
+                                          "brandColor":  "",
+                                          "tier":  "Standard",
+                                          "apiName":  "microsoftcopilotstudio",
+                                          "isProcessSimpleApiReferenceConversionAlreadyDone":  false
+                                      }
+}

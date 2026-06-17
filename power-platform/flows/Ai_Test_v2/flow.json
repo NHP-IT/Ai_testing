@@ -1,0 +1,515 @@
+﻿{
+    "name":  "2229783d-4a69-f111-ab0c-002248e2e6df",
+    "id":  "/providers/Microsoft.ProcessSimple/environments/605e3ed6-b18f-ece1-ad54-4f71a003a6cb/flows/2229783d-4a69-f111-ab0c-002248e2e6df",
+    "type":  "Microsoft.ProcessSimple/environments/flows",
+    "properties":  {
+                       "apiId":  "/providers/Microsoft.PowerApps/apis/shared_logicflows",
+                       "displayName":  "Ai_Test_v2",
+                       "userType":  "Owner",
+                       "definition":  {
+                                          "$schema":  "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                                          "contentVersion":  "undefined",
+                                          "parameters":  {
+                                                             "$authentication":  {
+                                                                                     "defaultValue":  {
+
+                                                                                                      },
+                                                                                     "type":  "SecureObject"
+                                                                                 },
+                                                             "$connections":  {
+                                                                                  "defaultValue":  {
+
+                                                                                                   },
+                                                                                  "type":  "Object"
+                                                                              }
+                                                         },
+                                          "triggers":  {
+                                                           "manual":  {
+                                                                          "type":  "Request",
+                                                                          "kind":  "Button",
+                                                                          "inputs":  {
+                                                                                         "schema":  {
+                                                                                                        "type":  "object",
+                                                                                                        "properties":  {
+
+                                                                                                                       },
+                                                                                                        "required":  [
+
+                                                                                                                     ]
+                                                                                                    }
+                                                                                     }
+                                                                      }
+                                                       },
+                                          "actions":  {
+                                                          "Initialize_RegressionResults":  {
+                                                                                               "actions":  {
+                                                                                                               "Initialize_variable":  {
+                                                                                                                                           "type":  "InitializeVariable",
+                                                                                                                                           "inputs":  {
+                                                                                                                                                          "variables":  [
+                                                                                                                                                                            {
+                                                                                                                                                                                "name":  "RegressionResults",
+                                                                                                                                                                                "type":  "array"
+                                                                                                                                                                            }
+                                                                                                                                                                        ]
+                                                                                                                                                      }
+                                                                                                                                       }
+                                                                                                           },
+                                                                                               "runAfter":  {
+
+                                                                                                            },
+                                                                                               "type":  "Scope"
+                                                                                           },
+                                                          "Initialize_LiveResults":  {
+                                                                                         "actions":  {
+                                                                                                         "Initialize_variable_1":  {
+                                                                                                                                       "type":  "InitializeVariable",
+                                                                                                                                       "inputs":  {
+                                                                                                                                                      "variables":  [
+                                                                                                                                                                        {
+                                                                                                                                                                            "name":  "LiveResults",
+                                                                                                                                                                            "type":  "array"
+                                                                                                                                                                        }
+                                                                                                                                                                    ]
+                                                                                                                                                  }
+                                                                                                                                   }
+                                                                                                     },
+                                                                                         "runAfter":  {
+
+                                                                                                      },
+                                                                                         "type":  "Scope"
+                                                                                     },
+                                                          "Initialize_Waiting":  {
+                                                                                     "actions":  {
+
+                                                                                                 },
+                                                                                     "runAfter":  {
+
+                                                                                                  },
+                                                                                     "type":  "Scope"
+                                                                                 },
+                                                          "List_rows_present_in_a_table":  {
+                                                                                               "runAfter":  {
+                                                                                                                "Initialize_RegressionResults":  [
+                                                                                                                                                     "Succeeded"
+                                                                                                                                                 ]
+                                                                                                            },
+                                                                                               "type":  "OpenApiConnection",
+                                                                                               "inputs":  {
+                                                                                                              "parameters":  {
+                                                                                                                                 "source":  "me",
+                                                                                                                                 "drive":  "b!BMPfgZmKkEiTEb5jLTU1HQmQvi8JPItBnx4WZ-rOtlvVsStc6FwsSoePnePs8rN-",
+                                                                                                                                 "file":  "/TestQuestions.xlsx",
+                                                                                                                                 "table":  "TestQuestionsTable"
+                                                                                                                             },
+                                                                                                              "host":  {
+                                                                                                                           "apiId":  "/providers/Microsoft.PowerApps/apis/shared_excelonlinebusiness",
+                                                                                                                           "operationId":  "GetItems",
+                                                                                                                           "connectionName":  "shared_excelonlinebusiness"
+                                                                                                                       }
+                                                                                                          }
+                                                                                           },
+                                                          "Apply_to_each":  {
+                                                                                "foreach":  "@outputs(\u0027List_rows_present_in_a_table\u0027)?[\u0027body/value\u0027]",
+                                                                                "actions":  {
+                                                                                                "Execute_Agent_and_wait":  {
+                                                                                                                               "type":  "OpenApiConnectionWebhook",
+                                                                                                                               "inputs":  {
+                                                                                                                                              "parameters":  {
+                                                                                                                                                                 "Copilot":  "copilots_header_07a8e",
+                                                                                                                                                                 "body/message":  "@items(\u0027Apply_to_each\u0027)?[\u0027Question\u0027]"
+                                                                                                                                                             },
+                                                                                                                                              "host":  {
+                                                                                                                                                           "apiId":  "/providers/Microsoft.PowerApps/apis/shared_microsoftcopilotstudio",
+                                                                                                                                                           "operationId":  "ExecuteCopilotAsyncV2",
+                                                                                                                                                           "connectionName":  "shared_microsoftcopilotstudio"
+                                                                                                                                                       }
+                                                                                                                                          }
+                                                                                                                           },
+                                                                                                "Append_to_array_variable":  {
+                                                                                                                                 "runAfter":  {
+                                                                                                                                                  "Execute_Agent_and_wait":  [
+                                                                                                                                                                                 "Succeeded"
+                                                                                                                                                                             ]
+                                                                                                                                              },
+                                                                                                                                 "type":  "AppendToArrayVariable",
+                                                                                                                                 "inputs":  {
+                                                                                                                                                "name":  "RegressionResults",
+                                                                                                                                                "value":  "@json(concat(\u0027{\"Question\":\"\u0027, items(\u0027Apply_to_each\u0027)?[\u0027Question\u0027], \u0027\",\"Expected\":\"\u0027, items(\u0027Apply_to_each\u0027)?[\u0027Expected\u0027], \u0027\",\"Response\":\"\u0027, outputs(\u0027Execute_Agent_and_wait\u0027)?[\u0027body/outputText\u0027], \u0027\"}\u0027))"
+                                                                                                                                            }
+                                                                                                                             }
+                                                                                            },
+                                                                                "runAfter":  {
+                                                                                                 "List_rows_present_in_a_table":  [
+                                                                                                                                      "Succeeded"
+                                                                                                                                  ]
+                                                                                             },
+                                                                                "type":  "Foreach"
+                                                                            },
+                                                          "Create_CSV_table":  {
+                                                                                   "runAfter":  {
+                                                                                                    "Apply_to_each":  [
+                                                                                                                          "Succeeded"
+                                                                                                                      ]
+                                                                                                },
+                                                                                   "type":  "Table",
+                                                                                   "inputs":  {
+                                                                                                  "from":  "@variables(\u0027RegressionResults\u0027)",
+                                                                                                  "format":  "CSV"
+                                                                                              }
+                                                                               },
+                                                          "Execute_Agent_and_wait_1":  {
+                                                                                           "runAfter":  {
+                                                                                                            "Create_CSV_table":  [
+                                                                                                                                     "Succeeded"
+                                                                                                                                 ]
+                                                                                                        },
+                                                                                           "type":  "OpenApiConnectionWebhook",
+                                                                                           "inputs":  {
+                                                                                                          "parameters":  {
+                                                                                                                             "Copilot":  "copilots_header_07a8e",
+                                                                                                                             "body/message":  "@body(\u0027Create_CSV_table\u0027)"
+                                                                                                                         },
+                                                                                                          "host":  {
+                                                                                                                       "apiId":  "/providers/Microsoft.PowerApps/apis/shared_microsoftcopilotstudio",
+                                                                                                                       "operationId":  "ExecuteCopilotAsyncV2",
+                                                                                                                       "connectionName":  "shared_microsoftcopilotstudio"
+                                                                                                                   }
+                                                                                                      }
+                                                                                       },
+                                                          "Execute_Agent_and_wait_2":  {
+                                                                                           "runAfter":  {
+                                                                                                            "Initialize_LiveResults":  [
+                                                                                                                                           "Succeeded"
+                                                                                                                                       ]
+                                                                                                        },
+                                                                                           "type":  "OpenApiConnectionWebhook",
+                                                                                           "inputs":  {
+                                                                                                          "parameters":  {
+                                                                                                                             "Copilot":  "copilots_header_07a8e"
+                                                                                                                         },
+                                                                                                          "host":  {
+                                                                                                                       "apiId":  "/providers/Microsoft.PowerApps/apis/shared_microsoftcopilotstudio",
+                                                                                                                       "operationId":  "ExecuteCopilotAsyncV2",
+                                                                                                                       "connectionName":  "shared_microsoftcopilotstudio"
+                                                                                                                   }
+                                                                                                      }
+                                                                                       },
+                                                          "Parse_JSON":  {
+                                                                             "runAfter":  {
+                                                                                              "Execute_Agent_and_wait_2":  [
+                                                                                                                               "Succeeded"
+                                                                                                                           ]
+                                                                                          },
+                                                                             "type":  "ParseJson",
+                                                                             "inputs":  {
+                                                                                            "content":  "@outputs(\u0027Execute_Agent_and_wait_2\u0027)?[\u0027body/outputText\u0027]",
+                                                                                            "schema":  {
+                                                                                                           "type":  "array",
+                                                                                                           "items":  {
+                                                                                                                         "type":  "string"
+                                                                                                                     }
+                                                                                                       }
+                                                                                        }
+                                                                         },
+                                                          "Apply_to_each_1":  {
+                                                                                  "foreach":  "@body(\u0027Parse_JSON\u0027)",
+                                                                                  "actions":  {
+                                                                                                  "Execute_Agent_and_wait_3":  {
+                                                                                                                                   "type":  "OpenApiConnectionWebhook",
+                                                                                                                                   "inputs":  {
+                                                                                                                                                  "parameters":  {
+                                                                                                                                                                     "Copilot":  "copilots_header_07a8e",
+                                                                                                                                                                     "body/message":  "@items(\u0027Apply_to_each_1\u0027)"
+                                                                                                                                                                 },
+                                                                                                                                                  "host":  {
+                                                                                                                                                               "apiId":  "/providers/Microsoft.PowerApps/apis/shared_microsoftcopilotstudio",
+                                                                                                                                                               "operationId":  "ExecuteCopilotAsyncV2",
+                                                                                                                                                               "connectionName":  "shared_microsoftcopilotstudio"
+                                                                                                                                                           }
+                                                                                                                                              }
+                                                                                                                               },
+                                                                                                  "Append_to_array_variable_1":  {
+                                                                                                                                     "runAfter":  {
+                                                                                                                                                      "Execute_Agent_and_wait_3":  [
+                                                                                                                                                                                       "Succeeded"
+                                                                                                                                                                                   ]
+                                                                                                                                                  },
+                                                                                                                                     "type":  "AppendToArrayVariable",
+                                                                                                                                     "inputs":  {
+                                                                                                                                                    "name":  "LiveResults",
+                                                                                                                                                    "value":  ""
+                                                                                                                                                }
+                                                                                                                                 }
+                                                                                              },
+                                                                                  "runAfter":  {
+                                                                                                   "Parse_JSON":  [
+                                                                                                                      "Succeeded"
+                                                                                                                  ]
+                                                                                               },
+                                                                                  "type":  "Foreach"
+                                                                              }
+                                                      }
+                                      },
+                       "triggerSchema":  {
+                                             "type":  "object",
+                                             "properties":  {
+
+                                                            },
+                                             "required":  [
+
+                                                          ]
+                                         },
+                       "state":  "Stopped",
+                       "sharingType":  "CommonDataService",
+                       "connectionReferences":  {
+                                                    "shared_excelonlinebusiness":  {
+                                                                                       "connectionReferenceLogicalName":  "new_sharedexcelonlinebusiness_a2af1",
+                                                                                       "source":  "Invoker",
+                                                                                       "id":  "/providers/Microsoft.PowerApps/apis/shared_excelonlinebusiness",
+                                                                                       "displayName":  "Excel Online (Business)",
+                                                                                       "iconUri":  "https://static.powerapps.com/resource/ppcr/releases/v1.0.1815/1.0.1815.4762/excelonlinebusiness/icon.png",
+                                                                                       "brandColor":  "#107C41",
+                                                                                       "tier":  "Standard",
+                                                                                       "apiName":  "excelonlinebusiness",
+                                                                                       "isProcessSimpleApiReferenceConversionAlreadyDone":  false
+                                                                                   },
+                                                    "shared_microsoftcopilotstudio":  {
+                                                                                          "connectionReferenceLogicalName":  "new_sharedmicrosoftcopilotstudio_62748",
+                                                                                          "source":  "Invoker",
+                                                                                          "id":  "/providers/Microsoft.PowerApps/apis/shared_microsoftcopilotstudio",
+                                                                                          "displayName":  "Microsoft Copilot Studio",
+                                                                                          "iconUri":  "https://static.powerapps.com/resource/ppcr/releases/v1.0.1813/1.0.1813.4754/microsoftcopilotstudio/icon.png",
+                                                                                          "brandColor":  "",
+                                                                                          "tier":  "Standard",
+                                                                                          "apiName":  "microsoftcopilotstudio",
+                                                                                          "isProcessSimpleApiReferenceConversionAlreadyDone":  false
+                                                                                      }
+                                                },
+                       "createdTime":  "2026-06-16T06:11:41Z",
+                       "lastModifiedTime":  "2026-06-16T07:25:47Z",
+                       "flowSuspensionReason":  "None",
+                       "environment":  {
+                                           "name":  "605e3ed6-b18f-ece1-ad54-4f71a003a6cb",
+                                           "type":  "Microsoft.ProcessSimple/environments",
+                                           "id":  "/providers/Microsoft.ProcessSimple/environments/605e3ed6-b18f-ece1-ad54-4f71a003a6cb"
+                                       },
+                       "definitionSummary":  {
+                                                 "triggers":  [
+                                                                  {
+                                                                      "type":  "Request",
+                                                                      "kind":  "Button"
+                                                                  }
+                                                              ],
+                                                 "actions":  [
+                                                                 {
+                                                                     "type":  "Scope"
+                                                                 },
+                                                                 {
+                                                                     "type":  "Scope"
+                                                                 },
+                                                                 {
+                                                                     "type":  "Scope"
+                                                                 },
+                                                                 {
+                                                                     "type":  "OpenApiConnection",
+                                                                     "swaggerOperationId":  "GetItems",
+                                                                     "metadata":  {
+                                                                                      "tableId":  "TestQuestionsTable"
+                                                                                  },
+                                                                     "api":  {
+                                                                                 "name":  "shared_excelonlinebusiness",
+                                                                                 "id":  "/providers/Microsoft.PowerApps/apis/shared_excelonlinebusiness",
+                                                                                 "type":  "/providers/Microsoft.PowerApps/apis",
+                                                                                 "properties":  {
+                                                                                                    "displayName":  "Excel Online (Business)",
+                                                                                                    "iconUri":  "https://static.powerapps.com/resource/ppcr/releases/v1.0.1815/1.0.1815.4762/excelonlinebusiness/icon.png",
+                                                                                                    "metadata":  {
+                                                                                                                     "source":  "marketplace",
+                                                                                                                     "brandColor":  "#107C41",
+                                                                                                                     "useNewApimVersion":  "true",
+                                                                                                                     "version":  {
+                                                                                                                                     "previous":  "releases/v1.0.1808\\1.0.1808.4695",
+                                                                                                                                     "current":  "releases/v1.0.1815\\1.0.1815.4762"
+                                                                                                                                 }
+                                                                                                                 },
+                                                                                                    "tier":  "Standard",
+                                                                                                    "isCustomApi":  false,
+                                                                                                    "description":  "Excel Online (Business) connector lets you work with Excel files in document libraries supported by Microsoft Graph (OneDrive for Business, SharePoint Sites, and Office 365 Groups)."
+                                                                                                }
+                                                                             }
+                                                                 },
+                                                                 {
+                                                                     "type":  "Foreach"
+                                                                 },
+                                                                 {
+                                                                     "type":  "Table"
+                                                                 },
+                                                                 {
+                                                                     "type":  "OpenApiConnectionWebhook",
+                                                                     "swaggerOperationId":  "ExecuteCopilotAsyncV2",
+                                                                     "api":  {
+                                                                                 "name":  "shared_microsoftcopilotstudio",
+                                                                                 "id":  "/providers/Microsoft.PowerApps/apis/shared_microsoftcopilotstudio",
+                                                                                 "type":  "/providers/Microsoft.PowerApps/apis",
+                                                                                 "properties":  {
+                                                                                                    "displayName":  "Microsoft Copilot Studio",
+                                                                                                    "iconUri":  "https://static.powerapps.com/resource/ppcr/releases/v1.0.1813/1.0.1813.4754/microsoftcopilotstudio/icon.png",
+                                                                                                    "metadata":  {
+                                                                                                                     "source":  "marketplace",
+                                                                                                                     "brandColor":  "",
+                                                                                                                     "connectionLimits":  {
+                                                                                                                                              "*":  50
+                                                                                                                                          },
+                                                                                                                     "useNewApimVersion":  "true",
+                                                                                                                     "version":  {
+                                                                                                                                     "previous":  "releases/v1.0.1811\\1.0.1811.4738",
+                                                                                                                                     "current":  "releases/v1.0.1813\\1.0.1813.4754"
+                                                                                                                                 }
+                                                                                                                 },
+                                                                                                    "tier":  "Standard",
+                                                                                                    "isCustomApi":  false,
+                                                                                                    "description":  "Microsoft Copilot Studio used to discover and trigger agents"
+                                                                                                }
+                                                                             }
+                                                                 },
+                                                                 {
+                                                                     "type":  "OpenApiConnectionWebhook",
+                                                                     "swaggerOperationId":  "ExecuteCopilotAsyncV2",
+                                                                     "api":  {
+                                                                                 "name":  "shared_microsoftcopilotstudio",
+                                                                                 "id":  "/providers/Microsoft.PowerApps/apis/shared_microsoftcopilotstudio",
+                                                                                 "type":  "/providers/Microsoft.PowerApps/apis",
+                                                                                 "properties":  {
+                                                                                                    "displayName":  "Microsoft Copilot Studio",
+                                                                                                    "iconUri":  "https://static.powerapps.com/resource/ppcr/releases/v1.0.1813/1.0.1813.4754/microsoftcopilotstudio/icon.png",
+                                                                                                    "metadata":  {
+                                                                                                                     "source":  "marketplace",
+                                                                                                                     "brandColor":  "",
+                                                                                                                     "connectionLimits":  {
+                                                                                                                                              "*":  50
+                                                                                                                                          },
+                                                                                                                     "useNewApimVersion":  "true",
+                                                                                                                     "version":  {
+                                                                                                                                     "previous":  "releases/v1.0.1811\\1.0.1811.4738",
+                                                                                                                                     "current":  "releases/v1.0.1813\\1.0.1813.4754"
+                                                                                                                                 }
+                                                                                                                 },
+                                                                                                    "tier":  "Standard",
+                                                                                                    "isCustomApi":  false,
+                                                                                                    "description":  "Microsoft Copilot Studio used to discover and trigger agents"
+                                                                                                }
+                                                                             }
+                                                                 },
+                                                                 {
+                                                                     "type":  "ParseJson"
+                                                                 },
+                                                                 {
+                                                                     "type":  "Foreach"
+                                                                 },
+                                                                 {
+                                                                     "type":  "InitializeVariable"
+                                                                 },
+                                                                 {
+                                                                     "type":  "InitializeVariable"
+                                                                 },
+                                                                 {
+                                                                     "type":  "OpenApiConnectionWebhook",
+                                                                     "swaggerOperationId":  "ExecuteCopilotAsyncV2",
+                                                                     "api":  {
+                                                                                 "name":  "shared_microsoftcopilotstudio",
+                                                                                 "id":  "/providers/Microsoft.PowerApps/apis/shared_microsoftcopilotstudio",
+                                                                                 "type":  "/providers/Microsoft.PowerApps/apis",
+                                                                                 "properties":  {
+                                                                                                    "displayName":  "Microsoft Copilot Studio",
+                                                                                                    "iconUri":  "https://static.powerapps.com/resource/ppcr/releases/v1.0.1813/1.0.1813.4754/microsoftcopilotstudio/icon.png",
+                                                                                                    "metadata":  {
+                                                                                                                     "source":  "marketplace",
+                                                                                                                     "brandColor":  "",
+                                                                                                                     "connectionLimits":  {
+                                                                                                                                              "*":  50
+                                                                                                                                          },
+                                                                                                                     "useNewApimVersion":  "true",
+                                                                                                                     "version":  {
+                                                                                                                                     "previous":  "releases/v1.0.1811\\1.0.1811.4738",
+                                                                                                                                     "current":  "releases/v1.0.1813\\1.0.1813.4754"
+                                                                                                                                 }
+                                                                                                                 },
+                                                                                                    "tier":  "Standard",
+                                                                                                    "isCustomApi":  false,
+                                                                                                    "description":  "Microsoft Copilot Studio used to discover and trigger agents"
+                                                                                                }
+                                                                             }
+                                                                 },
+                                                                 {
+                                                                     "type":  "AppendToArrayVariable"
+                                                                 },
+                                                                 {
+                                                                     "type":  "OpenApiConnectionWebhook",
+                                                                     "swaggerOperationId":  "ExecuteCopilotAsyncV2",
+                                                                     "api":  {
+                                                                                 "name":  "shared_microsoftcopilotstudio",
+                                                                                 "id":  "/providers/Microsoft.PowerApps/apis/shared_microsoftcopilotstudio",
+                                                                                 "type":  "/providers/Microsoft.PowerApps/apis",
+                                                                                 "properties":  {
+                                                                                                    "displayName":  "Microsoft Copilot Studio",
+                                                                                                    "iconUri":  "https://static.powerapps.com/resource/ppcr/releases/v1.0.1813/1.0.1813.4754/microsoftcopilotstudio/icon.png",
+                                                                                                    "metadata":  {
+                                                                                                                     "source":  "marketplace",
+                                                                                                                     "brandColor":  "",
+                                                                                                                     "connectionLimits":  {
+                                                                                                                                              "*":  50
+                                                                                                                                          },
+                                                                                                                     "useNewApimVersion":  "true",
+                                                                                                                     "version":  {
+                                                                                                                                     "previous":  "releases/v1.0.1811\\1.0.1811.4738",
+                                                                                                                                     "current":  "releases/v1.0.1813\\1.0.1813.4754"
+                                                                                                                                 }
+                                                                                                                 },
+                                                                                                    "tier":  "Standard",
+                                                                                                    "isCustomApi":  false,
+                                                                                                    "description":  "Microsoft Copilot Studio used to discover and trigger agents"
+                                                                                                }
+                                                                             }
+                                                                 },
+                                                                 {
+                                                                     "type":  "AppendToArrayVariable"
+                                                                 }
+                                                             ]
+                                             },
+                       "flowTriggerUri":  "https://605e3ed6-b18f-ece1-ad54-4f71a003a6cb.02.common.australia.azure-apihub.net:443/apim/logicflows/2229783d-4a69-f111-ab0c-002248e2e6df/triggers/manual/run?api-version=2016-06-01",
+                       "installationStatus":  "Uninstalled",
+                       "owningUser":  {
+                                          "id":  "5ccb5758-7816-f111-8341-002248e2e6df",
+                                          "azureActiveDirectoryObjectId":  "4ce43045-064f-459e-966e-2ddecc80bf26"
+                                      },
+                       "flowFailureAlertSubscribed":  false,
+                       "workflowEntityId":  "2229783d-4a69-f111-ab0c-002248e2e6df",
+                       "workflowUniqueId":  "78e183be-d340-429e-b204-c459aa9a2a65",
+                       "referencedResources":  [
+                                                   {
+                                                       "service":  "excel",
+                                                       "resource":  {
+                                                                        "fileId":  "b!BMPfgZmKkEiTEb5jLTU1HQmQvi8JPItBnx4WZ-rOtlvVsStc6FwsSoePnePs8rN-/TestQuestions.xlsx",
+                                                                        "table":  "TestQuestionsTable"
+                                                                    },
+                                                       "referencers":  [
+                                                                           {
+                                                                               "referenceSourceType":  "Triggers",
+                                                                               "operationId":  "/providers/Microsoft.PowerApps/apis/shared_excelonlinebusiness/apiOperations/GetItems"
+                                                                           }
+                                                                       ]
+                                                   }
+                                               ],
+                       "isManaged":  false,
+                       "componentState":  "Draft",
+                       "isCustomizable":  {
+                                              "value":  true,
+                                              "canBeChanged":  true,
+                                              "managedPropertyLogicalName":  "iscustomizableanddeletable"
+                                          },
+                       "machineDescriptionData":  {
+
+                                                  }
+                   }
+}
