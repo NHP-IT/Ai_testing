@@ -27,58 +27,43 @@
     "actions":  {
 
         "Initialize_RegressionResults":  {
-            "actions":  {
-                "Initialize_variable":  {
-                    "type":  "InitializeVariable",
-                    "inputs":  {
-                        "variables":  [
-                            {
-                                "name":  "RegressionResults",
-                                "type":  "array"
-                            }
-                        ]
-                    }
-                }
-            },
             "runAfter":  {},
-            "type":  "Scope"
+            "type":  "InitializeVariable",
+            "inputs":  {
+                "variables":  [
+                    {
+                        "name":  "RegressionResults",
+                        "type":  "array"
+                    }
+                ]
+            }
         },
 
         "Initialize_LiveResults":  {
-            "actions":  {
-                "Initialize_variable_1":  {
-                    "type":  "InitializeVariable",
-                    "inputs":  {
-                        "variables":  [
-                            {
-                                "name":  "LiveResults",
-                                "type":  "array"
-                            }
-                        ]
-                    }
-                }
-            },
             "runAfter":  {},
-            "type":  "Scope"
+            "type":  "InitializeVariable",
+            "inputs":  {
+                "variables":  [
+                    {
+                        "name":  "LiveResults",
+                        "type":  "array"
+                    }
+                ]
+            }
         },
 
         "Initialize_Waiting":  {
-            "actions":  {
-                "Initialize_variable_2":  {
-                    "type":  "InitializeVariable",
-                    "inputs":  {
-                        "variables":  [
-                            {
-                                "name":  "Waiting",
-                                "type":  "string",
-                                "value":  ""
-                            }
-                        ]
-                    }
-                }
-            },
             "runAfter":  {},
-            "type":  "Scope"
+            "type":  "InitializeVariable",
+            "inputs":  {
+                "variables":  [
+                    {
+                        "name":  "Waiting",
+                        "type":  "string",
+                        "value":  ""
+                    }
+                ]
+            }
         },
 
         "List_rows_present_in_a_table":  {
